@@ -1,0 +1,1571 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>MALL MANAGER '89</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --neon-pink:    #ff2d78;
+  --neon-cyan:    #00f5ff;
+  --neon-purple:  #bf00ff;
+  --neon-yellow:  #ffe600;
+  --neon-green:   #00ff9f;
+  --dark-bg:      #0d0015;
+  --panel-bg:     #120020;
+  --text-main:    #e8d5ff;
+  --text-dim:     #8866aa;
+}
+
+* { 
+  box-sizing: border-box; 
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--dark-bg);
+  color: var(--text-main);
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  overflow: hidden;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  letter-spacing: 0.03em;
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.07) 2px,
+    rgba(0,0,0,0.07) 4px
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* Top stats bar */
+#stats {
+  height: 50px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--neon-purple);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 12px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(191,0,255,0.3);
+}
+
+#stats .stat {
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+#stats .stat span {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 6px rgba(255,230,0,0.5);
+}
+
+/* Canvas */
+#game {
+  flex: 1;
+  display: block;
+  touch-action: none;
+}
+
+/* Bottom action area */
+#actionPanel {
+  background: var(--panel-bg);
+  border-top: 2px solid var(--neon-purple);
+  box-shadow: 0 -4px 20px rgba(191,0,255,0.3);
+  padding: 12px;
+  max-height: 45vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+/* Buttons */
+button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid var(--neon-purple);
+  color: var(--neon-cyan);
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-shadow: 0 0 6px var(--neon-cyan);
+  min-height: 48px;
+}
+
+button:active {
+  background: rgba(0,245,255,0.15);
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 12px rgba(0,245,255,0.4), inset 0 0 12px rgba(0,245,255,0.1);
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+button.primary {
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  text-shadow: 0 0 8px var(--neon-green);
+}
+
+button.primary:active {
+  background: rgba(0,255,159,0.15);
+  box-shadow: 0 0 16px var(--neon-green), 0 0 30px rgba(0,255,159,0.25);
+}
+
+button.danger {
+  border-color: var(--neon-pink);
+  color: var(--neon-pink);
+  text-shadow: 0 0 6px var(--neon-pink);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.small {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+hr {
+  border: none;
+  border-top: 1px solid rgba(191,0,255,0.3);
+  margin: 12px 0;
+}
+
+/* Modal overlay */
+#modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+#modalContent {
+  background: var(--panel-bg);
+  border: 2px solid var(--neon-purple);
+  border-radius: 8px;
+  padding: 16px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(191,0,255,0.5);
+}
+
+#modalContent h2 {
+  margin: 0 0 12px 0;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px var(--neon-cyan);
+}
+
+#modalContent button {
+  margin-top: 6px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--dark-bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--neon-purple);
+  border-radius: 2px;
+}
+
+</style>
+</head>
+<body>
+
+<!-- Top stats bar -->
+<div id="stats">
+  <div class="stat">💰 <span id="money"></span></div>
+  <div class="stat">⭐ <span id="rep"></span></div>
+  <div class="stat">👥 <span id="visitors"></span></div>
+  <div style="flex:1"></div>
+  <div class="stat small">W<span id="wave">1</span></div>
+</div>
+
+<!-- Canvas -->
+<canvas id="game"></canvas>
+
+<!-- Bottom action panel -->
+<div id="actionPanel">
+  <div id="actionContent"></div>
+</div>
+
+<!-- Modal for shop details -->
+<div id="modal">
+  <div id="modalContent"></div>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function resizeCanvas(){
+  const statsH = 50;
+  const actionH = document.getElementById('actionPanel').offsetHeight;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight - statsH - actionH;
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+/* ======================
+   GAME STATE
+====================== */
+let money = 1500;
+let reputation = 25;
+let gamePhase = "planning";
+let waveTimer = 0;
+let waveNumber = 1;
+let waveLength = 30;
+
+let selectedShopIndex = null;
+let placingGuard = false;
+let placingCamera = false;
+let cameraPlacementStep = 0;
+let tempCamera = null;
+
+// Organised crime
+let flashMobKnowledge = 0;
+let flashMobPending = false;
+let flashMobTimer = 0;
+let crewKnowledge = 0;
+let crewScoutActive = false;
+let crewScoutId = null;
+let crewPending = false;
+let crewTimer = 0;
+let crewScoutCaught = false;
+
+let guards = [];
+let cameras = [];
+let visitors = [];
+let shops = [];
+
+let cctvLevel = 0;
+const cctvCosts = [0, 100, 200, 300, 500, 800];
+
+let waveStats = {
+  mallRevenue: 0,
+  theftLoss: 0,
+  thefts: 0,
+  offenders: new Set(),
+  salaryPaid: 0
+};
+
+let floatingTexts = [];
+let particles = [];
+
+// Visitor type profiles
+const visitorProfiles = {
+  ordinary:    { M:10, S:40, risk:1.5, effort:1.2, maxThefts:1, plannedStops:2 },
+  opportunist: { M:25, S:25, risk:1.0, effort:1.0, maxThefts:2, plannedStops:2 },
+  determined:  { M:40, S:10, risk:0.5, effort:1.5, maxThefts:4, plannedStops:3 },
+  bigspender:  { M:5,  S:50, risk:2.0, effort:1.5, maxThefts:0, plannedStops:4 },
+  specialist:  { M:45, S:5,  risk:0.3, effort:2.0, maxThefts:3, plannedStops:4 }
+};
+
+let crewWarningShown = false;
+
+// Map bounds for auto-fit
+const MAP_BOUNDS = { minX: 80, maxX: 1160, minY: 60, maxY: 900 };
+const MAP_PAD = 20;
+
+function getMapTransform(){
+  const mapW = MAP_BOUNDS.maxX - MAP_BOUNDS.minX;
+  const mapH = MAP_BOUNDS.maxY - MAP_BOUNDS.minY;
+  const availW = canvas.width  - MAP_PAD * 2;
+  const availH = canvas.height - MAP_PAD * 2;
+  const scale = Math.min(availW / mapW, availH / mapH);
+  const offsetX = MAP_PAD + (availW - mapW * scale) / 2 - MAP_BOUNDS.minX * scale;
+  const offsetY = MAP_PAD + (availH - mapH * scale) / 2 - MAP_BOUNDS.minY * scale;
+  return { scale, offsetX, offsetY };
+}
+
+function screenToMap(sx, sy){
+  const { scale, offsetX, offsetY } = getMapTransform();
+  return { x: (sx - offsetX) / scale, y: (sy - offsetY) / scale };
+}
+
+/* ======================
+   NODES & SHOPS
+====================== */
+const nodes = {
+  entranceMain: { id:"entranceMain", x:120, y:450, type:"transit", connections:["hub"] },
+  entranceSide: { id:"entranceSide", x:1120, y:450, type:"transit", connections:["hub"] },
+  hub: { id:"hub", x:600, y:450, type:"decision", connections:["entranceMain","entranceSide","north","toyshop","east","south","food","pharmacy"] },
+  north: { id:"north", x:600, y:150, type:"shop", connections:["hub"] },
+  toyshop: { id:"toyshop", x:600, y:280, type:"shop", connections:["hub"] },
+  east:  { id:"east",  x:1000, y:450, type:"shop", connections:["hub"] },
+  south: { id:"south", x:600, y:750, type:"shop", connections:["hub"] },
+  food:  { id:"food",  x:600, y:600, type:"shop", connections:["hub"] },
+  pharmacy: { id:"pharmacy", x:350, y:550, type:"shop", connections:["hub"] }
+};
+
+// Initial 6 shops
+shops = [
+  { name:"Electronics", type:"Electronics", node:"north", value:80, baseOpportunity:25, strategy:null, profitTier:0, hardeningTier:0, guardianshipTier:0, salary:0, rep:25, theftCount:0 },
+  { name:"Toys", type:"Toys", node:"toyshop", value:30, baseOpportunity:15, strategy:null, profitTier:0, hardeningTier:0, guardianshipTier:0, salary:0, rep:25, theftCount:0 },
+  { name:"Clothing", type:"Clothing", node:"east", value:40, baseOpportunity:20, strategy:null, profitTier:0, hardeningTier:0, guardianshipTier:0, salary:0, rep:25, theftCount:0 },
+  { name:"Jewellery", type:"Jewellery", node:"south", value:100, baseOpportunity:35, strategy:null, profitTier:0, hardeningTier:0, guardianshipTier:0, salary:0, rep:25, theftCount:0 },
+  { name:"Food Court", type:"Food", node:"food", value:25, baseOpportunity:10, strategy:null, profitTier:0, hardeningTier:0, guardianshipTier:0, salary:0, rep:25, theftCount:0 },
+  { name:"Pharmacy", type:"Pharmacy", node:"pharmacy", value:60, baseOpportunity:30, strategy:null, profitTier:0, hardeningTier:0, guardianshipTier:0, salary:0, rep:25, theftCount:0 }
+];
+
+/* ======================
+   HELPERS
+====================== */
+function getTotalSalaryPerSec(){
+  const shopSalary = shops.reduce((sum, s) => sum + (s.salary || 0), 0);
+  const guardSalary = guards.length * 1;
+  const cctvSalary = cctvLevel === 0 ? 0 : cctvLevel <= 4 ? cctvLevel * 0.5 : 3.5;
+  const securityBase = guardSalary + cctvSalary;
+  const repMult = reputation < 75 ? 1.0 : Math.min(1.4, 1.0 + Math.floor((reputation - 75) / 50) * 0.2);
+  return shopSalary + (securityBase * repMult);
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+/* ======================
+   UI RENDERING
+====================== */
+function updateUI(){
+  document.getElementById("money").innerText = "£" + Math.round(money);
+  document.getElementById("rep").innerText = Math.round(reputation);
+  document.getElementById("visitors").innerText = visitors.length;
+  document.getElementById("wave").innerText = waveNumber;
+
+  const actionEl = document.getElementById("actionContent");
+  
+  if(gamePhase === "planning"){
+    // Show planning controls
+    let html = '<button class="primary" onclick="startWave()">▶ START WAVE ' + waveNumber + '</button>';
+    
+    // CCTV upgrade
+    if(cctvLevel < 5){
+      const cost = cctvCosts[cctvLevel + 1];
+      html += '<hr><div class="small"><b>Global Surveillance</b> Level ' + cctvLevel + '/5</div>';
+      html += '<button onclick="upgradeCCTV()">Upgrade CCTV (£' + cost + ')</button>';
+    }
+    
+    // Guard/Camera placement
+    html += '<hr><div class="grid2">';
+    html += '<button onclick="startPlaceGuard()">Place Guard £150</button>';
+    const maxCams = cctvLevel === 0 ? 0 : cctvLevel === 1 ? 2 : cctvLevel === 2 ? 4 : cctvLevel === 3 ? 6 : cctvLevel === 4 ? 8 : 10;
+    const cameraBtn = cameras.length >= maxCams 
+      ? '<button disabled>Camera £50 [' + cameras.length + '/' + maxCams + ']</button>'
+      : '<button onclick="startPlaceCamera()">Camera £50 [' + cameras.length + '/' + maxCams + ']</button>';
+    html += cameraBtn;
+    html += '</div>';
+    
+    // Selected shop
+    if(selectedShopIndex !== null){
+      const shop = shops[selectedShopIndex];
+      html += '<hr><div style="font-size:16px;margin-bottom:8px;"><b>' + shop.name + '</b> £' + shop.value + ' | Rep: ' + Math.round(shop.rep) + '</div>';
+      
+      if(!shop.strategy){
+        html += '<div class="grid2">';
+        html += '<button onclick="setStrategy(' + selectedShopIndex + ',\'profit\')">💰 Profit Model</button>';
+        html += '<button onclick="setStrategy(' + selectedShopIndex + ',\'security\')">🔒 Security Model</button>';
+        html += '</div>';
+      } else if(shop.strategy === 'profit'){
+        if(shop.profitTier < 3){
+          const cost = 100 * (shop.profitTier + 1);
+          html += '<button onclick="upgradeProfit(' + selectedShopIndex + ')">💰 Upgrade Profit (£' + cost + ')</button>';
+        }
+      } else if(shop.strategy === 'security'){
+        if(shop.hardeningTier < 3){
+          const cost = 100 * (shop.hardeningTier + 1);
+          html += '<button onclick="upgradeHardening(' + selectedShopIndex + ')">🔒 Upgrade Hardening (£' + cost + ')</button>';
+        }
+      }
+    } else {
+      html += '<hr><div class="small">Tap a shop to manage it</div>';
+    }
+    
+    actionEl.innerHTML = html;
+  } else {
+    // Wave active — show wave stats
+    const net = waveStats.mallRevenue - waveStats.theftLoss - waveStats.salaryPaid;
+    const netColor = net > 0 ? '#4caf50' : net < 0 ? '#e53935' : '#aaa';
+    
+    actionEl.innerHTML = 
+      '<div style="font-size:16px;margin-bottom:8px;"><b>Wave ' + waveNumber + ' Active</b></div>' +
+      '<div class="small">Revenue: £' + waveStats.mallRevenue.toFixed(0) + '</div>' +
+      '<div class="small">Thefts: ' + waveStats.thefts + ' (£' + waveStats.theftLoss.toFixed(0) + ')</div>' +
+      '<div class="small">Salary: £' + waveStats.salaryPaid.toFixed(0) + '</div>' +
+      '<div class="small">Net: <span style="color:' + netColor + '">£' + net.toFixed(0) + '</span></div>';
+  }
+  
+  resizeCanvas();
+}
+
+function showModal(title, content){
+  document.getElementById("modal").style.display = "flex";
+  document.getElementById("modalContent").innerHTML = 
+    '<h2>' + title + '</h2>' + content + 
+    '<button onclick="closeModal()">Close</button>';
+}
+
+function closeModal(){
+  document.getElementById("modal").style.display = "none";
+}
+
+/* ======================
+   ACTIONS
+====================== */
+function startWave(){
+  if(gamePhase !== "planning") return;
+  
+  shops.forEach(shop => shop.theftCount = 0);
+  
+  waveStats = {
+    mallRevenue: 0,
+    theftLoss: 0,
+    thefts: 0,
+    offenders: new Set(),
+    salaryPaid: 0
+  };
+  
+  // Roll for flash mob
+  if(waveNumber >= 9 && reputation >= 45){
+    const chance = Math.min(0.9, 0.40 + (waveNumber - 9) * 0.05);
+    if(Math.random() < chance){
+      flashMobPending = true;
+      flashMobTimer = waveLength * 0.3 * (0.1 + Math.random() * 0.7);
+    }
+  }
+  
+  gamePhase = "wave";
+  waveLength = Math.min(50, 30 + (waveNumber - 1));
+  waveTimer = waveLength;
+  updateUI();
+}
+
+function upgradeCCTV(){
+  if(cctvLevel >= 5) return;
+  const cost = cctvCosts[cctvLevel + 1];
+  if(money < cost) return;
+  money -= cost;
+  cctvLevel++;
+  updateUI();
+}
+
+function startPlaceGuard(){
+  placingGuard = true;
+  placingCamera = false;
+  updateUI();
+}
+
+function startPlaceCamera(){
+  const maxCameras = cctvLevel === 0 ? 0 : cctvLevel === 1 ? 2 : cctvLevel === 2 ? 4 : cctvLevel === 3 ? 6 : cctvLevel === 4 ? 8 : 10;
+  if(cameras.length >= maxCameras){
+    showModal("Camera Limit", "You've reached the maximum cameras for CCTV Level " + cctvLevel + " (" + maxCameras + " cameras). Upgrade CCTV to place more.");
+    return;
+  }
+  placingCamera = true;
+  cameraPlacementStep = 1;
+  placingGuard = false;
+  tempCamera = null;
+  updateUI();
+}
+
+function setStrategy(idx, strat){
+  shops[idx].strategy = strat;
+  updateUI();
+}
+
+function upgradeProfit(idx){
+  const shop = shops[idx];
+  if(shop.profitTier >= 3) return;
+  const cost = 100 * (shop.profitTier + 1);
+  if(money < cost) return;
+  money -= cost;
+  shop.profitTier++;
+  shop.baseOpportunity += 5;
+  shop.salary += 0.5;
+  updateUI();
+}
+
+function upgradeHardening(idx){
+  const shop = shops[idx];
+  if(shop.hardeningTier >= 3) return;
+  const cost = 100 * (shop.hardeningTier + 1);
+  if(money < cost) return;
+  money -= cost;
+  shop.hardeningTier++;
+  shop.baseOpportunity -= 5;
+  shop.salary += 0.3;
+  updateUI();
+}
+
+/* ======================
+   TOUCH EVENTS
+====================== */
+let touchStartTime = 0, touchStartX = 0, touchStartY = 0, didDrag = false;
+
+canvas.addEventListener('touchstart', function(e){
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  touchStartX = t.clientX - rect.left;
+  touchStartY = t.clientY - rect.top;
+  touchStartTime = Date.now();
+  didDrag = false;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', function(e){
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const sx = t.clientX - rect.left;
+  const sy = t.clientY - rect.top;
+  if(Math.hypot(sx - touchStartX, sy - touchStartY) > 8) didDrag = true;
+  
+  // Camera aiming
+  if(placingCamera && cameraPlacementStep === 2 && tempCamera){
+    const m = screenToMap(sx, sy);
+    tempCamera.angle = Math.atan2(m.y - tempCamera.y, m.x - tempCamera.x);
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', function(e){
+  e.preventDefault();
+  const elapsed = Date.now() - touchStartTime;
+  
+  if(elapsed < 350 && !didDrag){
+    handleTap(touchStartX, touchStartY);
+  } else if(placingCamera && cameraPlacementStep === 2 && didDrag){
+    // Confirm camera after drag
+    cameras.push(tempCamera);
+    money -= 50;
+    placingCamera = false;
+    cameraPlacementStep = 0;
+    tempCamera = null;
+    updateUI();
+  }
+}, { passive: false });
+
+function handleTap(sx, sy){
+  const m = screenToMap(sx, sy);
+  const x = m.x, y = m.y;
+  
+  // Guard placement
+  if(placingGuard && gamePhase === 'planning'){
+    guards.push({ x:x, y:y, radius:130 });
+    money -= 150;
+    placingGuard = false;
+    updateUI();
+    return;
+  }
+  
+  // Camera placement step 1
+  if(placingCamera && gamePhase === 'planning' && cameraPlacementStep === 1){
+    tempCamera = { x:x, y:y, angle:0, range:150, fov:Math.PI/3 };
+    cameraPlacementStep = 2;
+    return;
+  }
+  
+  // Camera placement step 2 (tap to confirm)
+  if(placingCamera && gamePhase === 'planning' && cameraPlacementStep === 2){
+    cameras.push(tempCamera);
+    money -= 50;
+    placingCamera = false;
+    cameraPlacementStep = 0;
+    tempCamera = null;
+    updateUI();
+    return;
+  }
+  
+  // Shop selection
+  for(let i = 0; i < shops.length; i++){
+    const node = nodes[shops[i].node];
+    if(Math.hypot(x - node.x, y - node.y) < 60){
+      selectedShopIndex = i;
+      updateUI();
+      return;
+    }
+  }
+  
+  // Deselect
+  selectedShopIndex = null;
+  updateUI();
+}
+
+/* ======================
+   VISITOR SPAWNING & MOVEMENT
+====================== */
+function spawnVisitor(){
+  const spawnNode = Math.random() < 0.7 ? "entranceMain" : "entranceSide";
+  
+  // Determine type based on reputation
+  let type = "ordinary";
+  const rand = Math.random();
+  
+  if(reputation >= 50){
+    if(rand < 0.4) type = "bigspender";
+    else if(rand < 0.6) type = "ordinary";
+    else if(rand < 0.8) type = "opportunist";
+    else type = "determined";
+  } else if(reputation >= 30){
+    if(rand < 0.5) type = "ordinary";
+    else if(rand < 0.75) type = "opportunist";
+    else type = "determined";
+  } else {
+    if(rand < 0.3) type = "ordinary";
+    else if(rand < 0.6) type = "opportunist";
+    else if(rand < 0.85) type = "determined";
+    else type = "specialist";
+  }
+  
+  const profile = visitorProfiles[type];
+  const speed = 60 * 1.15; // 15% speed boost
+  
+  visitors.push({
+    x: nodes[spawnNode].x,
+    y: nodes[spawnNode].y,
+    targetNode: "hub",
+    currentNode: spawnNode,
+    type: type,
+    speed: speed,
+    M: profile.M,
+    S: profile.S,
+    O: 20,
+    R: 0,
+    baseS: profile.S,
+    riskSensitivity: profile.risk,
+    effortSensitivity: profile.effort,
+    maxThefts: profile.maxThefts,
+    plannedStops: profile.plannedStops,
+    stopsVisited: 0,
+    theftsCommitted: 0,
+    visitedShops: {},
+    visitedHub: false,
+    timeInMall: 0,
+    isFleeing: false,
+    finished: false,
+    spawnEntrance: spawnNode
+  });
+}
+
+function moveVisitor(v, dt){
+  if(v.finished) return;
+  
+  let currentSpeed = v.speed;
+  if(v.isFleeing) currentSpeed *= 1.3;
+  if(visitors.length < 10) currentSpeed *= 1.55;
+  else if(visitors.length < 20) currentSpeed *= 1.40;
+  
+  const target = nodes[v.targetNode];
+  const dx = target.x - v.x;
+  const dy = target.y - v.y;
+  const dist = Math.hypot(dx, dy);
+  const step = currentSpeed * dt;
+  
+  if(dist <= step){
+    v.x = target.x;
+    v.y = target.y;
+    v.currentNode = v.targetNode;
+    decideNextNode(v);
+  } else {
+    v.x += dx / dist * step;
+    v.y += dy / dist * step;
+  }
+}
+
+function decideNextNode(v){
+  const current = nodes[v.currentNode];
+  
+  // Exit check
+  if((v.currentNode === "entranceMain" || v.currentNode === "entranceSide") && v.visitedHub){
+    v.finished = true;
+    return;
+  }
+  
+  // Flee check
+  if(v.timeInMall > 18 && v.theftsCommitted > 0){
+    v.isFleeing = true;
+    if(current.type === "decision"){
+      const distMain = Math.hypot(v.x - nodes.entranceMain.x, v.y - nodes.entranceMain.y);
+      const distSide = Math.hypot(v.x - nodes.entranceSide.x, v.y - nodes.entranceSide.y);
+      v.targetNode = distMain < distSide ? "entranceMain" : "entranceSide";
+      return;
+    }
+    v.targetNode = findNextNodeToHub(v.currentNode);
+    return;
+  }
+  
+  // Hub logic
+  if(current.type === "decision"){
+    v.visitedHub = true;
+    
+    if(v.stopsVisited < v.plannedStops){
+      let shopNodes = current.connections.filter(id => nodes[id].type === "shop");
+      
+      // Scout targets specific shops
+      if(v.isScout && v.scoutTargets){
+        const uncased = v.scoutTargets.filter(id => !v.shopsCased.includes(id));
+        if(uncased.length > 0){
+          v.targetNode = uncased[0];
+          return;
+        }
+      }
+      
+      // Crew targets specific shops
+      if(v.isCrew && v.crewTargets){
+        const untargeted = v.crewTargets.filter(id => {
+          const idx = shops.findIndex(s => s.node === id);
+          return !v.visitedShops[idx];
+        });
+        if(untargeted.length > 0){
+          v.targetNode = untargeted[0];
+          return;
+        }
+      }
+      
+      // Flash mob targets specific shop
+      if(v.isFlashMob && v.flashMobTarget){
+        const idx = shops.findIndex(s => s.node === v.flashMobTarget);
+        if(!v.visitedShops[idx]){
+          v.targetNode = v.flashMobTarget;
+          return;
+        }
+      }
+      
+      // Normal visitor — random available shop
+      const availableShops = shopNodes.filter(id => !v.visitedShops[shops.findIndex(s => s.node === id)]);
+      if(availableShops.length > 0){
+        v.targetNode = availableShops[Math.floor(Math.random() * availableShops.length)];
+        return;
+      }
+    }
+    
+    // Exit
+    if(visitors.length < 20){
+      v.targetNode = v.spawnEntrance;
+    } else {
+      v.targetNode = Math.random() < 0.6 ? v.spawnEntrance : 
+        (v.spawnEntrance === "entranceMain" ? "entranceSide" : "entranceMain");
+    }
+    return;
+  }
+  
+  // Shop node — return to hub
+  if(current.type === "shop"){
+    v.targetNode = "hub";
+    return;
+  }
+  
+  // Transit node — continue toward hub
+  v.targetNode = findNextNodeToHub(v.currentNode);
+}
+
+function findNextNodeToHub(fromId){
+  const visited = new Set([fromId]);
+  const queue = [[fromId, [fromId]]];
+  
+  while(queue.length > 0){
+    const [currentId, path] = queue.shift();
+    const current = nodes[currentId];
+    
+    for(let connId of current.connections){
+      if(visited.has(connId)) continue;
+      visited.add(connId);
+      
+      const newPath = [...path, connId];
+      
+      if(connId === "hub") return newPath[1];
+      
+      queue.push([connId, newPath]);
+    }
+  }
+  return "hub";
+}
+
+function checkShops(v){
+  // Scout casing logic
+  if(v.isScout){
+    checkScoutCasing(v);
+    return; // Scouts don't shop or steal
+  }
+  
+  shops.forEach((shop, index)=>{
+    if(v.visitedShops[index]) return;
+    const node = nodes[shop.node];
+    if(Math.hypot(v.x - node.x, v.y - node.y) < 60){
+      v.visitedShops[index] = true;
+      v.stopsVisited++;
+      
+      // Calculate theft
+      let effectiveMotivation = v.M;
+      if(v.type === "opportunist"){
+        const crowdBonus = Math.min(Math.floor(visitors.length / 10), 6);
+        effectiveMotivation += crowdBonus;
+      }
+      
+      const theftScore = effectiveMotivation + v.O - (v.R * v.riskSensitivity) + (shop.baseOpportunity * v.effortSensitivity);
+      const threshold = v.S;
+      
+      if(theftScore > threshold && v.theftsCommitted < v.maxThefts){
+        // Theft!
+        v.theftsCommitted++;
+        
+        let theftMultiplier = 0.4;
+        let shopRepDamage = 3;
+        let mallRepDamage = 1.5;
+        
+        if(v.isCrew){
+          const knowledge = v.knowledge || 0;
+          theftMultiplier = Math.min(1.0, 0.90 + (knowledge * 0.01));
+          shopRepDamage = 12 + knowledge;
+          mallRepDamage = 6.0;
+        } else if(v.isFlashMob){
+          theftMultiplier = 0.55;
+          shopRepDamage = 6;
+          mallRepDamage = 3.0;
+        } else if(v.type === "specialist"){
+          theftMultiplier = 0.65;
+          shopRepDamage = 8;
+          mallRepDamage = 4.0;
+        } else if(v.type === "opportunist"){
+          theftMultiplier = shop.strategy === "security" && shop.hardeningTier > 0 ? 0.35 : 0.60;
+          shopRepDamage = shop.strategy === "security" && shop.hardeningTier > 0 ? 2 : 3;
+        }
+        
+        const repMultiplier = 0.6 + (shop.rep / 125);
+        const theftLoss = shop.value * theftMultiplier * repMultiplier;
+        
+        money -= theftLoss;
+        reputation -= mallRepDamage;
+        reputation = Math.max(0, reputation);
+        shop.rep -= shopRepDamage;
+        shop.rep = Math.max(0, shop.rep);
+        
+        waveStats.theftLoss += theftLoss;
+        waveStats.thefts++;
+        waveStats.offenders.add(v.type);
+        shop.theftCount++;
+        
+        // Visual feedback
+        floatingTexts.push({
+          x: node.x,
+          y: node.y - 30,
+          text: "-£" + theftLoss.toFixed(0),
+          color: "#ff2d78",
+          life: 2.0,
+          maxLife: 2.0,
+          vy: -20
+        });
+        
+      } else if(v.type === "bigspender"){
+        // Purchase
+        const purchaseValue = shop.value * 0.5;
+        money += purchaseValue;
+        waveStats.mallRevenue += purchaseValue;
+        shop.rep += 0.3;
+        shop.rep = Math.min(100, shop.rep);
+        
+        floatingTexts.push({
+          x: node.x,
+          y: node.y - 30,
+          text: "+£" + purchaseValue.toFixed(0),
+          color: "#00ff9f",
+          life: 2.0,
+          maxLife: 2.0,
+          vy: -20
+        });
+      }
+    }
+  });
+}
+
+/* ======================
+   ORGANISED CRIME
+====================== */
+function spawnFlashMob(){
+  flashMobKnowledge = Math.min(10, flashMobKnowledge + 1);
+  
+  const scoredShops = shops.map((shop, i) => ({
+    shop: shop,
+    index: i,
+    score: shop.value * (1 - shop.hardeningTier * 0.15)
+  })).sort((a, b) => b.score - a.score);
+  
+  const targetShop = scoredShops.length > 0 ? scoredShops[0].shop : null;
+  if(!targetShop) return;
+  
+  const targetNode = targetShop.node;
+  const mobSize = 8 + flashMobKnowledge + Math.floor(Math.random() * 5);
+  const spawnNode = Math.random() < 0.7 ? "entranceMain" : "entranceSide";
+  
+  for(let i = 0; i < mobSize; i++){
+    visitors.push({
+      x: nodes[spawnNode].x,
+      y: nodes[spawnNode].y,
+      targetNode: "hub",
+      currentNode: spawnNode,
+      type: "opportunist",
+      speed: 85 * 1.15,
+      M: 55,
+      S: 2,
+      O: 20,
+      R: 0,
+      baseS: 2,
+      riskSensitivity: 0.05,
+      effortSensitivity: 1.5,
+      maxThefts: 4,
+      plannedStops: 1,
+      stopsVisited: 0,
+      theftsCommitted: 0,
+      visitedShops: {},
+      visitedHub: false,
+      timeInMall: 0,
+      isFleeing: false,
+      finished: false,
+      spawnEntrance: spawnNode,
+      isFlashMob: true,
+      flashMobTarget: targetNode
+    });
+  }
+}
+
+function checkOrganisedCrime(dt){
+  // Flash mob
+  if(flashMobPending){
+    flashMobTimer -= dt;
+    if(flashMobTimer <= 0){
+      flashMobPending = false;
+      spawnFlashMob();
+    }
+  }
+  
+  // Professional crew — scout spawns early in wave
+  const inPeakTraffic = waveTimer > waveLength * 0.7;
+  
+  if(waveNumber >= 11 && reputation >= 65 && !crewScoutActive && !crewPending && inPeakTraffic){
+    const chance = Math.min(0.8, 0.30 + (waveNumber - 11) * 0.05);
+    if(Math.random() < chance){
+      spawnCrewScout();
+    }
+  }
+  
+  // Crew follows after scout completes
+  if(crewPending){
+    crewTimer -= dt;
+    if(crewTimer <= 0){
+      crewPending = false;
+      spawnCrew();
+    }
+  }
+}
+
+function spawnCrewScout(){
+  crewScoutActive = true;
+  const spawnNode = Math.random() < 0.7 ? "entranceMain" : "entranceSide";
+  
+  // Pick top 3-4 shops to case
+  const scoredShops = shops.map((shop, i) => ({
+    index: i,
+    score: shop.value * (0.8 + shop.rep / 250) * (1 - shop.hardeningTier * 0.1)
+  })).sort((a, b) => b.score - a.score);
+  
+  const shopsToCase = Math.min(3 + (crewKnowledge >= 4 ? 1 : 0), scoredShops.length);
+  const targetShops = scoredShops.slice(0, shopsToCase).map(s => shops[s.index].node);
+  
+  const scout = {
+    x: nodes[spawnNode].x,
+    y: nodes[spawnNode].y,
+    targetNode: "hub",
+    currentNode: spawnNode,
+    type: "ordinary",
+    speed: 65 * 1.15,
+    M: 5,
+    S: 999,
+    O: 0,
+    R: 0,
+    baseS: 999,
+    riskSensitivity: 999,
+    effortSensitivity: 1.0,
+    maxThefts: 0,
+    plannedStops: shopsToCase,
+    stopsVisited: 0,
+    theftsCommitted: 0,
+    visitedShops: {},
+    visitedHub: false,
+    timeInMall: 0,
+    isFleeing: false,
+    finished: false,
+    spawnEntrance: spawnNode,
+    isScout: true,
+    scoutTargets: targetShops,
+    shopsCased: []
+  };
+  
+  crewScoutId = visitors.push(scout) - 1;
+}
+
+function spawnCrew(){
+  crewKnowledge = Math.min(10, crewKnowledge + 1);
+  
+  const scout = visitors.find(v => v.isScout);
+  if(!scout || scout.shopsCased.length === 0) return;
+  
+  const crewSize = 2 + Math.floor(crewKnowledge / 4);
+  const spawnNode = Math.random() < 0.7 ? "entranceMain" : "entranceSide";
+  
+  for(let i = 0; i < crewSize; i++){
+    const degraded = crewScoutCaught;
+    const knowledge = degraded ? Math.max(0, crewKnowledge - 3) : crewKnowledge;
+    
+    visitors.push({
+      x: nodes[spawnNode].x,
+      y: nodes[spawnNode].y,
+      targetNode: "hub",
+      currentNode: spawnNode,
+      type: "specialist",
+      speed: 75 * 1.15,
+      M: 60 + knowledge * 2,
+      S: 15 - knowledge,
+      O: 30,
+      R: degraded ? 25 : 5,
+      baseS: 15 - knowledge,
+      riskSensitivity: degraded ? 1.5 : 0.4,
+      effortSensitivity: 2.0,
+      maxThefts: 3,
+      plannedStops: scout.shopsCased.length,
+      stopsVisited: 0,
+      theftsCommitted: 0,
+      visitedShops: {},
+      visitedHub: false,
+      timeInMall: 0,
+      isFleeing: false,
+      finished: false,
+      spawnEntrance: spawnNode,
+      isCrew: true,
+      crewTargets: scout.shopsCased,
+      knowledge: knowledge
+    });
+  }
+}
+
+function checkScoutCasing(v){
+  if(!v.isScout) return;
+  
+  v.scoutTargets.forEach(nodeId => {
+    const shopIndex = shops.findIndex(s => s.node === nodeId);
+    if(shopIndex === -1 || v.shopsCased.includes(nodeId)) return;
+    
+    const node = nodes[nodeId];
+    if(Math.hypot(v.x - node.x, v.y - node.y) < 60){
+      v.shopsCased.push(nodeId);
+      
+      // Check if caught on camera
+      if(!crewScoutCaught && cctvLevel >= 3){
+        const caughtByCam = cameras.some(cam => {
+          const dx = v.x - cam.x;
+          const dy = v.y - cam.y;
+          const dist = Math.hypot(dx, dy);
+          if(dist > cam.range) return false;
+          const angleToVisitor = Math.atan2(dy, dx);
+          let angleDiff = angleToVisitor - cam.angle;
+          while(angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+          while(angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+          return Math.abs(angleDiff) < cam.fov / 2;
+        });
+        
+        if(caughtByCam){
+          const catchThreshold = 3 - Math.min(2, Math.floor(crewKnowledge / 3));
+          const marksNeeded = Math.max(1, catchThreshold);
+          if(v.shopsCased.length >= marksNeeded){
+            crewScoutCaught = true;
+            floatingTexts.push({
+              x: node.x,
+              y: node.y - 50,
+              text: "📷 SCOUT FLAGGED",
+              color: "#ff2d78",
+              life: 3.0,
+              maxLife: 3.0,
+              vy: -15
+            });
+          }
+        }
+      }
+      
+      // Scout completes when all shops cased
+      if(v.shopsCased.length >= v.scoutTargets.length){
+        crewScoutActive = false;
+        crewPending = true;
+        crewTimer = waveLength * 0.15 * (0.5 + Math.random() * 0.5);
+        v.isFleeing = true;
+        
+        if(!crewWarningShown){
+          crewWarningShown = true;
+          floatingTexts.push({
+            x: nodes.hub.x,
+            y: nodes.hub.y - 60,
+            text: crewScoutCaught ? "⚠️ CREW DEGRADED" : "🚨 CREW INCOMING",
+            color: crewScoutCaught ? "#ff9800" : "#f44336",
+            life: 4.0,
+            maxLife: 4.0,
+            vy: -15
+          });
+        }
+      }
+    }
+  });
+}
+
+/* ======================
+   GAME LOOP STUB
+====================== */
+function update(dt){
+  if(gamePhase === "wave"){
+    waveTimer -= dt;
+    if(waveTimer <= 0){
+      // End wave — show summary
+      const net = waveStats.mallRevenue - waveStats.theftLoss - waveStats.salaryPaid;
+      const netColor = net > 0 ? '#4caf50' : net < 0 ? '#e53935' : '#aaa';
+      
+      let threatInfo = '';
+      if(flashMobKnowledge > 0){
+        threatInfo += '<div class="small" style="color:#ff9800">⚡ Flash Mob intel: ' + flashMobKnowledge + '/10</div>';
+      }
+      if(crewKnowledge > 0){
+        const crewSize = 2 + Math.floor(crewKnowledge / 4);
+        threatInfo += '<div class="small" style="color:#bf00ff">🎯 Crew intel: ' + crewKnowledge + '/10 (' + crewSize + ' operatives)</div>';
+      }
+      
+      showModal('Wave ' + waveNumber + ' Complete', 
+        '<div style="margin:12px 0;">' +
+        '<div class="small">Revenue: £' + waveStats.mallRevenue.toFixed(0) + '</div>' +
+        '<div class="small">Thefts: ' + waveStats.thefts + ' (-£' + waveStats.theftLoss.toFixed(0) + ')</div>' +
+        '<div class="small">Salary: £' + waveStats.salaryPaid.toFixed(0) + '</div>' +
+        '<div class="small" style="margin-top:8px;">Net: <span style="color:' + netColor + '">£' + net.toFixed(0) + '</span></div>' +
+        (threatInfo ? '<hr>' + threatInfo : '') +
+        '</div>'
+      );
+      
+      gamePhase = "planning";
+      waveNumber++;
+      visitors = [];
+      flashMobPending = false;
+      crewPending = false;
+      crewScoutActive = false;
+      crewWarningShown = false;
+      updateUI();
+    }
+    
+    // Salary
+    const salaryThisFrame = getTotalSalaryPerSec() * dt;
+    money -= salaryThisFrame;
+    waveStats.salaryPaid += salaryThisFrame;
+    
+    // Spawn visitors
+    if(waveTimer > waveLength * 0.6){
+      const spawnRate = reputation >= 50 ? 0.8 : reputation >= 30 ? 0.6 : 0.4;
+      if(Math.random() < spawnRate * dt) spawnVisitor();
+    }
+    
+    // Update visitors
+    visitors.forEach(v => {
+      v.timeInMall += dt;
+      moveVisitor(v, dt);
+      checkShops(v);
+    });
+    
+    // Remove finished visitors
+    visitors = visitors.filter(v => !v.finished);
+    
+    // Organised crime
+    checkOrganisedCrime(dt);
+    
+    // Update floating text
+    floatingTexts.forEach(ft => {
+      ft.life -= dt;
+      ft.y += ft.vy * dt;
+    });
+    floatingTexts = floatingTexts.filter(ft => ft.life > 0);
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  bgGrad.addColorStop(0, '#0d0015');
+  bgGrad.addColorStop(0.5, '#13002a');
+  bgGrad.addColorStop(1, '#0a0010');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Apply transform
+  ctx.save();
+  const { scale, offsetX, offsetY } = getMapTransform();
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  
+  // Draw corridors
+  ctx.strokeStyle = '#1a0035';
+  ctx.lineWidth = 38;
+  ctx.lineCap = 'round';
+  Object.values(nodes).forEach(node=>{
+    node.connections.forEach(targetId=>{
+      if(node.id < targetId){
+        const target = nodes[targetId];
+        ctx.beginPath();
+        ctx.moveTo(node.x, node.y);
+        ctx.lineTo(target.x, target.y);
+        ctx.stroke();
+      }
+    });
+  });
+  
+  // Draw entrances
+  ctx.shadowColor = '#00ff9f';
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = '#003322';
+  ctx.beginPath();
+  ctx.arc(nodes.entranceMain.x, nodes.entranceMain.y, 35, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = '#00ff9f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  
+  // Hub
+  ctx.shadowColor = '#ff2d78';
+  ctx.shadowBlur = 25;
+  const hubGrad = ctx.createRadialGradient(nodes.hub.x, nodes.hub.y, 5, nodes.hub.x, nodes.hub.y, 30);
+  hubGrad.addColorStop(0, 'rgba(255,45,120,0.4)');
+  hubGrad.addColorStop(1, 'rgba(80,0,60,0.1)');
+  ctx.fillStyle = hubGrad;
+  ctx.beginPath();
+  ctx.arc(nodes.hub.x, nodes.hub.y, 30, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  
+  // Draw shops
+  shops.forEach((shop, i)=>{
+    const node = nodes[shop.node];
+    const isSelected = (i === selectedShopIndex);
+    const width = 100;
+    const height = 60;
+    
+    let fillInner = 'rgba(20,0,40,0.85)';
+    let glowColor = '#8822cc';
+    let borderColor = 'rgba(100,0,180,0.5)';
+    let borderWidth = 2;
+    
+    if(shop.strategy === 'profit'){
+      const t = Math.min(shop.profitTier / 3, 1);
+      fillInner = `rgba(0,${40 + t*60},${40 + t*40},0.85)`;
+      glowColor = '#00ff9f';
+      borderColor = `rgba(0,255,159,${0.4 + t*0.5})`;
+      borderWidth = 2 + shop.profitTier;
+    } else if(shop.strategy === 'security'){
+      const t = Math.min(shop.hardeningTier / 3, 1);
+      fillInner = `rgba(${20 + t*30},0,${60 + t*80},0.85)`;
+      glowColor = '#bf00ff';
+      borderColor = `rgba(191,0,255,${0.4 + t*0.5})`;
+      borderWidth = 2 + shop.hardeningTier;
+    }
+    
+    if(isSelected){
+      fillInner = 'rgba(60,0,90,0.95)';
+      glowColor = '#00f5ff';
+      borderColor = '#00f5ff';
+      borderWidth = 3;
+    }
+    
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = isSelected ? 20 : 8;
+    ctx.fillStyle = fillInner;
+    ctx.beginPath();
+    roundRect(ctx, node.x - width/2, node.y - height/2, width, height, 4);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = borderWidth;
+    ctx.beginPath();
+    roundRect(ctx, node.x - width/2, node.y - height/2, width, height, 4);
+    ctx.stroke();
+    
+    if(isSelected){
+      ctx.strokeStyle = 'rgba(0,245,255,0.3)';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      roundRect(ctx, node.x - width/2 - 6, node.y - height/2 - 6, width+12, height+12, 6);
+      ctx.stroke();
+    }
+    
+    // Shop name
+    ctx.fillStyle = isSelected ? '#00f5ff' : '#e8d5ff';
+    ctx.font = "14px 'VT323', monospace";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(shop.name, node.x, node.y);
+  });
+  
+  // Guards
+  guards.forEach(g=>{
+    ctx.strokeStyle = 'rgba(0,245,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, g.radius, 0, Math.PI*2);
+    ctx.stroke();
+    
+    ctx.shadowColor = '#00f5ff';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#003344';
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, 8, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#00f5ff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  });
+  
+  // Cameras
+  cameras.forEach(cam=>{
+    ctx.fillStyle = 'rgba(255,45,120,0.05)';
+    ctx.strokeStyle = 'rgba(255,45,120,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cam.x, cam.y);
+    ctx.arc(cam.x, cam.y, cam.range, cam.angle - cam.fov/2, cam.angle + cam.fov/2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    ctx.shadowColor = '#ff2d78';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#330011';
+    ctx.beginPath();
+    ctx.arc(cam.x, cam.y, 5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#ff2d78';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  });
+  
+  // Temp camera preview
+  if(tempCamera && cameraPlacementStep === 2){
+    ctx.fillStyle = 'rgba(255,45,120,0.2)';
+    ctx.strokeStyle = 'rgba(255,45,120,0.7)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath();
+    ctx.moveTo(tempCamera.x, tempCamera.y);
+    ctx.arc(tempCamera.x, tempCamera.y, tempCamera.range, tempCamera.angle - tempCamera.fov/2, tempCamera.angle + tempCamera.fov/2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  
+  // Visitors
+  visitors.forEach(v => {
+    const t = Date.now();
+    
+    if(v.isFleeing){
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 7, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    } else if(v.isScout){
+      if(crewScoutCaught){
+        ctx.shadowColor = '#ff2d78';
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = '#ff2d78';
+        ctx.beginPath();
+        ctx.arc(v.x, v.y, 7, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff';
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = 'center';
+        ctx.fillText("👁", v.x, v.y - 13);
+      } else {
+        ctx.fillStyle = 'rgba(180,150,255,0.85)';
+        ctx.beginPath();
+        ctx.arc(v.x, v.y, 6, 0, Math.PI*2);
+        ctx.fill();
+      }
+    } else if(v.isCrew){
+      const pulse = 10 + Math.sin(t / 120) * 3;
+      ctx.shadowColor = '#ff00cc';
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = '#cc00aa';
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, pulse, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#ff44ee';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    } else if(v.isFlashMob){
+      const pulse = 8 + Math.sin(t / 80 + v.x) * 2;
+      ctx.shadowColor = '#ffe600';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#ffaa00';
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, pulse, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    } else if(v.type === 'specialist'){
+      const pulse = 11 + Math.sin(t / 180) * 2;
+      ctx.shadowColor = '#ff0044';
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = '#cc0033';
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, pulse, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#ff3366';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    } else if(v.type === 'bigspender'){
+      ctx.shadowColor = '#ffe600';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = '#ccaa00';
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 9, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffe600';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    } else if(v.type === 'ordinary'){
+      ctx.fillStyle = 'rgba(0,220,200,0.75)';
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 6, 0, Math.PI*2);
+      ctx.fill();
+    } else if(v.type === 'opportunist'){
+      ctx.fillStyle = 'rgba(255,180,0,0.8)';
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 6, 0, Math.PI*2);
+      ctx.fill();
+    } else if(v.type === 'determined'){
+      ctx.fillStyle = 'rgba(255,80,30,0.85)';
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 7, 0, Math.PI*2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(150,100,200,0.7)';
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 6, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  });
+  
+  // Floating text
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  floatingTexts.forEach(ft => {
+    const alpha = ft.life / ft.maxLife;
+    const hexAlpha = Math.floor(alpha * 255).toString(16).padStart(2, '0');
+    ctx.font = "bold 15px 'Orbitron', sans-serif";
+    ctx.shadowColor = ft.color;
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = ft.color + hexAlpha;
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.shadowBlur = 0;
+  });
+  
+  ctx.restore();
+  
+  // Placement hints
+  if(placingGuard){
+    ctx.fillStyle = 'rgba(13,0,21,0.85)';
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    ctx.fillStyle = '#00f5ff';
+    ctx.font = "bold 13px 'Orbitron', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TAP MAP TO PLACE GUARD', canvas.width/2, canvas.height - 25);
+  } else if(placingCamera && cameraPlacementStep === 1){
+    ctx.fillStyle = 'rgba(13,0,21,0.85)';
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    ctx.fillStyle = '#ff2d78';
+    ctx.font = "bold 13px 'Orbitron', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TAP MAP TO PLACE CAMERA', canvas.width/2, canvas.height - 25);
+  } else if(placingCamera && cameraPlacementStep === 2){
+    ctx.fillStyle = 'rgba(13,0,21,0.85)';
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    ctx.fillStyle = '#ff2d78';
+    ctx.font = "bold 13px 'Orbitron', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('DRAG TO AIM · TAP TO CONFIRM', canvas.width/2, canvas.height - 25);
+  }
+}
+
+let last = 0;
+function loop(t){
+  const dt = (t - last) / 1000;
+  last = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+updateUI();
+loop(0);
+</script>
+</body>
+</html>
