@@ -87,30 +87,36 @@ body::after {
 
 /* Right action panel */
 #actionPanel {
-  width: 280px;
-  background: var(--panel-bg);
+  width: 200px;
+  background: rgba(18,0,32,0.95);
   border-left: 2px solid var(--neon-purple);
   box-shadow: -2px 0 20px rgba(191,0,255,0.3);
-  padding: 12px;
+  padding: 8px;
   overflow-y: auto;
   flex-shrink: 0;
+  font-size: 15px;
+}
+
+#actionPanel.placing {
+  background: rgba(18,0,32,0.7);
+  backdrop-filter: blur(4px);
 }
 
 /* Buttons */
 button {
   width: 100%;
-  margin-top: 8px;
-  padding: 12px;
+  margin-top: 6px;
+  padding: 8px 6px;
   background: transparent;
   border: 1px solid var(--neon-purple);
   color: var(--neon-cyan);
   font-family: 'VT323', monospace;
-  font-size: 18px;
-  letter-spacing: 0.08em;
+  font-size: 15px;
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition: all 0.15s ease;
   text-shadow: 0 0 6px var(--neon-cyan);
-  min-height: 48px;
+  min-height: 38px;
 }
 
 button:active {
@@ -152,14 +158,15 @@ button.danger {
 }
 
 .small {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-dim);
+  line-height: 1.3;
 }
 
 hr {
   border: none;
   border-top: 1px solid rgba(191,0,255,0.3);
-  margin: 12px 0;
+  margin: 8px 0;
 }
 
 /* Modal overlay */
@@ -237,7 +244,7 @@ const ctx = canvas.getContext("2d");
 
 function resizeCanvas(){
   const statsW = 140;
-  const actionW = 280;
+  const actionW = 200;
   canvas.width = window.innerWidth - statsW - actionW;
   canvas.height = window.innerHeight;
 }
@@ -396,37 +403,37 @@ function updateUI(){
     
     // Guard/Camera placement
     html += '<hr><div class="grid2">';
-    html += '<button onclick="startPlaceGuard()">Place Guard £150</button>';
+    html += '<button onclick="startPlaceGuard()">Guard £150</button>';
     const maxCams = cctvLevel === 0 ? 0 : cctvLevel === 1 ? 2 : cctvLevel === 2 ? 4 : cctvLevel === 3 ? 6 : cctvLevel === 4 ? 8 : 10;
     const cameraBtn = cameras.length >= maxCams 
-      ? '<button disabled>Camera £50 [' + cameras.length + '/' + maxCams + ']</button>'
-      : '<button onclick="startPlaceCamera()">Camera £50 [' + cameras.length + '/' + maxCams + ']</button>';
+      ? '<button disabled>Cam £50<br>[' + cameras.length + '/' + maxCams + ']</button>'
+      : '<button onclick="startPlaceCamera()">Cam £50<br>[' + cameras.length + '/' + maxCams + ']</button>';
     html += cameraBtn;
     html += '</div>';
     
     // Selected shop
     if(selectedShopIndex !== null){
       const shop = shops[selectedShopIndex];
-      html += '<hr><div style="font-size:16px;margin-bottom:8px;"><b>' + shop.name + '</b> £' + shop.value + ' | Rep: ' + Math.round(shop.rep) + '</div>';
+      html += '<hr><div style="font-size:14px;margin-bottom:6px;"><b>' + shop.name + '</b><br>£' + shop.value + ' | Rep: ' + Math.round(shop.rep) + '</div>';
       
       if(!shop.strategy){
         html += '<div class="grid2">';
-        html += '<button onclick="setStrategy(' + selectedShopIndex + ',\'profit\')">💰 Profit Model</button>';
-        html += '<button onclick="setStrategy(' + selectedShopIndex + ',\'security\')">🔒 Security Model</button>';
+        html += '<button onclick="setStrategy(' + selectedShopIndex + ',\'profit\')">💰 Profit</button>';
+        html += '<button onclick="setStrategy(' + selectedShopIndex + ',\'security\')">🔒 Security</button>';
         html += '</div>';
       } else if(shop.strategy === 'profit'){
         if(shop.profitTier < 3){
           const cost = 100 * (shop.profitTier + 1);
-          html += '<button onclick="upgradeProfit(' + selectedShopIndex + ')">💰 Upgrade Profit (£' + cost + ')</button>';
+          html += '<button onclick="upgradeProfit(' + selectedShopIndex + ')">💰 Upgrade<br>£' + cost + '</button>';
         }
       } else if(shop.strategy === 'security'){
         if(shop.hardeningTier < 3){
           const cost = 100 * (shop.hardeningTier + 1);
-          html += '<button onclick="upgradeHardening(' + selectedShopIndex + ')">🔒 Upgrade Hardening (£' + cost + ')</button>';
+          html += '<button onclick="upgradeHardening(' + selectedShopIndex + ')">🔒 Upgrade<br>£' + cost + '</button>';
         }
       }
     } else {
-      html += '<hr><div class="small">Tap a shop to manage it</div>';
+      html += '<hr><div class="small">Tap shop to manage</div>';
     }
     
     actionEl.innerHTML = html;
@@ -500,6 +507,7 @@ function upgradeCCTV(){
 function startPlaceGuard(){
   placingGuard = true;
   placingCamera = false;
+  document.getElementById('actionPanel').classList.add('placing');
   updateUI();
 }
 
@@ -513,6 +521,7 @@ function startPlaceCamera(){
   cameraPlacementStep = 1;
   placingGuard = false;
   tempCamera = null;
+  document.getElementById('actionPanel').classList.add('placing');
   updateUI();
 }
 
@@ -588,6 +597,7 @@ canvas.addEventListener('touchend', function(e){
     placingCamera = false;
     cameraPlacementStep = 0;
     tempCamera = null;
+    document.getElementById('actionPanel').classList.remove('placing');
     updateUI();
   }
 }, { passive: false });
@@ -601,6 +611,7 @@ function handleTap(sx, sy){
     guards.push({ x:x, y:y, radius:130 });
     money -= 150;
     placingGuard = false;
+    document.getElementById('actionPanel').classList.remove('placing');
     updateUI();
     return;
   }
@@ -619,6 +630,7 @@ function handleTap(sx, sy){
     placingCamera = false;
     cameraPlacementStep = 0;
     tempCamera = null;
+    document.getElementById('actionPanel').classList.remove('placing');
     updateUI();
     return;
   }
