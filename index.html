@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="screen-orientation" content="landscape">
 <title>MALL MANAGER '89</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=VT323&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -34,7 +35,7 @@ body {
   overflow: hidden;
   height: 100dvh;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   letter-spacing: 0.03em;
 }
 
@@ -54,21 +55,21 @@ body::after {
   z-index: 9998;
 }
 
-/* Top stats bar */
+/* Left stats bar */
 #stats {
-  height: 50px;
+  width: 140px;
   background: var(--panel-bg);
-  border-bottom: 1px solid var(--neon-purple);
+  border-right: 1px solid var(--neon-purple);
   display: flex;
-  align-items: center;
-  padding: 0 12px;
-  gap: 12px;
+  flex-direction: column;
+  padding: 12px 8px;
+  gap: 8px;
   flex-shrink: 0;
-  box-shadow: 0 2px 12px rgba(191,0,255,0.3);
+  box-shadow: 2px 0 12px rgba(191,0,255,0.3);
 }
 
 #stats .stat {
-  font-size: 16px;
+  font-size: 15px;
   white-space: nowrap;
 }
 
@@ -84,13 +85,13 @@ body::after {
   touch-action: none;
 }
 
-/* Bottom action area */
+/* Right action panel */
 #actionPanel {
+  width: 280px;
   background: var(--panel-bg);
-  border-top: 2px solid var(--neon-purple);
-  box-shadow: 0 -4px 20px rgba(191,0,255,0.3);
+  border-left: 2px solid var(--neon-purple);
+  box-shadow: -2px 0 20px rgba(191,0,255,0.3);
   padding: 12px;
-  max-height: 45vh;
   overflow-y: auto;
   flex-shrink: 0;
 }
@@ -208,19 +209,19 @@ hr {
 </head>
 <body>
 
-<!-- Top stats bar -->
+<!-- Left stats bar -->
 <div id="stats">
-  <div class="stat">💰 <span id="money"></span></div>
-  <div class="stat">⭐ <span id="rep"></span></div>
-  <div class="stat">👥 <span id="visitors"></span></div>
+  <div class="stat">💰<br><span id="money"></span></div>
+  <div class="stat">⭐<br><span id="rep"></span></div>
+  <div class="stat">👥<br><span id="visitors"></span></div>
   <div style="flex:1"></div>
-  <div class="stat small">W<span id="wave">1</span></div>
+  <div class="stat small">Wave<br><span id="wave">1</span></div>
 </div>
 
 <!-- Canvas -->
 <canvas id="game"></canvas>
 
-<!-- Bottom action panel -->
+<!-- Right action panel -->
 <div id="actionPanel">
   <div id="actionContent"></div>
 </div>
@@ -235,10 +236,10 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 function resizeCanvas(){
-  const statsH = 50;
-  const actionH = document.getElementById('actionPanel').offsetHeight;
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight - statsH - actionH;
+  const statsW = 140;
+  const actionW = 280;
+  canvas.width = window.innerWidth - statsW - actionW;
+  canvas.height = window.innerHeight;
 }
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
@@ -300,9 +301,9 @@ const visitorProfiles = {
 
 let crewWarningShown = false;
 
-// Map bounds for auto-fit
-const MAP_BOUNDS = { minX: 80, maxX: 1160, minY: 60, maxY: 900 };
-const MAP_PAD = 20;
+// Map bounds for auto-fit (including both entrances with padding)
+const MAP_BOUNDS = { minX: 60, maxX: 1180, minY: 60, maxY: 800 };
+const MAP_PAD = 30;
 
 function getMapTransform(){
   const mapW = MAP_BOUNDS.maxX - MAP_BOUNDS.minX;
@@ -1205,8 +1206,10 @@ function update(dt){
     money -= salaryThisFrame;
     waveStats.salaryPaid += salaryThisFrame;
     
-    // Spawn visitors
-    if(waveTimer > waveLength * 0.6){
+    // Spawn visitors (throughout the wave, tapering off toward end)
+    const timeRemaining = waveTimer;
+    const spawnWindowEnd = waveLength * 0.2; // Stop spawning in last 20%
+    if(timeRemaining > spawnWindowEnd){
       const spawnRate = reputation >= 50 ? 0.8 : reputation >= 30 ? 0.6 : 0.4;
       if(Math.random() < spawnRate * dt) spawnVisitor();
     }
@@ -1274,6 +1277,18 @@ function draw(){
   ctx.arc(nodes.entranceMain.x, nodes.entranceMain.y, 35, 0, Math.PI*2);
   ctx.fill();
   ctx.strokeStyle = '#00ff9f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  
+  // Side entrance
+  ctx.shadowColor = '#00f5ff';
+  ctx.shadowBlur = 15;
+  ctx.fillStyle = '#001a33';
+  ctx.beginPath();
+  ctx.arc(nodes.entranceSide.x, nodes.entranceSide.y, 28, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = '#00f5ff';
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.shadowBlur = 0;
